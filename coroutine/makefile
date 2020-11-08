@@ -1,4 +1,5 @@
-03 : 03.c
-02 : 02.c
-01 : 01.c
+client : client.c
 	gcc $^ -o $@
+main : main.c coroutine.h coroutine.c
+	gcc $^ -o $@
+	

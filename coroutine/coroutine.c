@@ -1,44 +1,122 @@
-#ifndef __COROUTINE_H__
-#define __COROUTINE_H__
-#include <ucontext.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "coroutine.h"
 
-#define CORSE   (1024)
-#define STACKSZ (1024)
+//创建调度器 分配协程挂载空间 初始化调度器
+//调度器缺点 协程数量固定->改进方式 红黑树
+schedule_t *schedule_create(){
+  schedule_t* s = (schedule_t*)malloc(sizeof(schedule_t));
+  if(s != NULL){
+    s->coroutines = (coroutine_t**)malloc(sizeof(coroutine_t*)*CORSE);//问题*
+    memset(s->coroutines, 0X00, sizeof(coroutine_t*)*CORSE);
+    s->max_id = 0;
+    s->current_id = -1;
+  }
+  return s;
+}
+static void* main_fun(schedule_t* s){
+  int id = s->current_id;
+  if(id != -1){
+    coroutine_t *c = s->coroutines[id];
+    c->call_back(s, c->argc);//argc->args
+    c->state = DEAD;
+    s->current_id = -1;
+  }
+  return NULL;
+}
+//创建协程 返回协程在调度器中的下标
+int coroutine_create(schedule_t* s, void*(*call_back)(schedule_t*, void* args), void* args){
+  //判断调度器有无空协程 有使用没有创建
+  int i;
+  coroutine_t *c = NULL;
+  for(i = 0; i < s->max_id; i++){
+    c = s->coroutines[i];
+    if(c->state == DEAD){
+      break;
+    }
+  }
+  if(i == s->max_id || c == NULL){
+    s->coroutines[i] = (coroutine_t*)malloc(sizeof(coroutine_t));
+    s->max_id++;
+  }
+  c = s->coroutines[i];
+  c->call_back = call_back;
+  c->argc = args;
+  c->state = READY;
 
-struct schedule;
-
-//协程状态
-enum State {DEAD, RUNNING, READY, SUSPEND};
-
-//协程结构体
-typedef struct {
-  ucontext_t ctx;//协程上下文数据
-  char* stack[STACKSZ];//独有栈
-  enum State state;//协程状态
-  void* argc;//函数参数
-  void* (*call_back)(struct schedule* s, void* args);//回调函数
-}coroutine_t;
-
-//协程调度器结构体
-typedef struct schedule {
-  ucontext_t ctx_main;//中控流程上下文
-  int max_id;//最大下标
-  int current_id;//当前工作协程ID
-  coroutine_t **coroutines;//所有协程
-}schedule_t;
-
-//创建协程调度器
-schedule_t* schedule_creat();
-//创建协程,并返回当前协程在调度器的下标
-int corotine_create(schedule_t* s, void*(*call_back)(schedule* s, void* args), void *grgs);
+  getcontext(&c->ctx);
+  
+  c->ctx.uc_stack.ss_sp = c->stack;
+  c->ctx.uc_stack.ss_size = STACKSZ;
+  c->ctx.uc_flags = 0;
+  c->ctx.uc_link = &s->ctx_main;
+  makecontext(&c->ctx, (void(*)())&main_fun, 1, s);
+  return i;
+  
+}
 //启动协程
-void coroutine_running(schedule_t* s, int id);
+void coroutine_running(schedule_t* s, int id){
+  int st = get_state(s, id);
+  if(st == DEAD){
+   return;
+  }
+  coroutine_t* c = s->coroutines[id];
+  c->state = RUNNING;
+  s->current_id = id;
+  swapcontext(&s->ctx_main, &c->ctx);
+}
 //让出CPU
-void corotine_yield(schedule_t* s);
+void coroutine_yield(schedule_t* s){
+  if(s->current_id != -1){
+    coroutine_t* c = s->coroutines[s->current_id];
+    c->state = SUSPEND;
+    s->current_id = -1;
+    swapcontext(&c->ctx, &s->ctx_main);
+  }
+}
 //恢复CPU
-void corotine_resume(schedule_t* s, int id);
-//释放调度器(释放所有协程)
-void schedulu_destory(schedule_t* s);
-//判断是否所有协程已经工作完毕
-void schedule_finished(schedule_t*s);
-#endif
+void coroutine_resume(schedule_t* s, int id){
+  coroutine_t* c = s->coroutines[id];
+  if(c != NULL && c->state == SUSPEND){
+    s->current_id = id;
+    c->state = RUNNING;
+    swapcontext(&s->ctx_main, &c->ctx);
+  }
+}
+//判断当前调度器中的协程是否已经全部执行结束
+int schedule_finished(schedule_t* s){
+  if(s->current_id != -1 ){
+    return 0;
+  }
+  for(int i = 0; i < s->max_id; i++ ){
+    if(s->coroutines[i]->state != DEAD){
+      return 0;
+    }
+  }
+  return 1;
+}
+//删除调度器释放资源
+void schedule_destory(schedule_t* s){
+  for(int i = 0; i < s->max_id; i++ ){
+   delete_coroutine(s, i);
+  }
+  free(s->coroutines);
+  free(s);
+}
+//删除协程
+static void delete_coroutine(schedule_t* s, int id){
+  coroutine_t* c = s->coroutines[id];
+  if(c != NULL){
+    free(c);
+    s->coroutines[id] = NULL;
+  }
+}
+//获取协程状态
+static enum State get_state(schedule_t* s, int id){
+  coroutine_t* c = s->coroutines[id];
+  if(c == NULL){
+    return DEAD;
+  }
+  return c->state;
+}
