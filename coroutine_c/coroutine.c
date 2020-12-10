@@ -8,7 +8,7 @@
 schedule_t *schedule_create(){
   schedule_t* s = (schedule_t*)malloc(sizeof(schedule_t));
   if(s != NULL){
-    s->coroutines = (coroutine_t**)malloc(sizeof(coroutine_t*)*CORSE);//问题*
+   s->coroutines = (coroutine_t**)malloc(sizeof(coroutine_t*)*CORSE);
     memset(s->coroutines, 0X00, sizeof(coroutine_t*)*CORSE);
     s->max_id = 0;
     s->current_id = -1;

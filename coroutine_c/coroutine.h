@@ -2,8 +2,8 @@
 #define __COROUTINE_H__
 #include <ucontext.h>
 
-#define CORSE   (1024)
-#define STACKSZ (1024)
+#define CORSE   (1024)//最多分配的协程数目
+#define STACKSZ (1024*8)
 
 struct schedule;
 
@@ -12,7 +12,7 @@ enum State {DEAD, RUNNING, READY, SUSPEND};
 
 //协程结构体
 typedef struct {
-  ucontext_t ctx;//协程上下文数据
+  ucontext_t ctx; //协程上下文数据
   char* stack[STACKSZ];//独有栈
   enum State state;//协程状态
   void* argc;//函数参数
