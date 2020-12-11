@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <ucontext.h>
 
+//测试get与set
 int main (void){
   int i = 0;
   ucontext_t ctx;
