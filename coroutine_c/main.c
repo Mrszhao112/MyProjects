@@ -19,7 +19,7 @@ int tcp_init(){
   }
   
   int op = 1;
-  setsockopt(lfd, SOL_SOCKET, SO_REUSEADDR, &op, sizeof(op));//问题
+  setsockopt(lfd, SOL_SOCKET, SO_REUSEADDR, &op, sizeof(op));//套接字
   struct sockaddr_in addr;
   addr.sin_family = AF_INET;
   addr.sin_port = htons(9000);
@@ -67,6 +67,7 @@ void accept_conn(int lfd, schedule_t* s, int co_ids[], void*(*call_back)(schedul
     }
   }
 }
+
 //回调函数
 void* handle(schedule_t* s, void* args){
   int *arr = (int*)args;
@@ -90,6 +91,8 @@ void* handle(schedule_t* s, void* args){
   }
   return NULL;
 }
+
+//简单回显
 int main(){
   int lfd = tcp_init();
   set_nonblock(lfd);
