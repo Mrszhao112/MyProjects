@@ -18,4 +18,4 @@ BoostSearch是一个基于boost文档的站内搜索引擎，当用户在页面�
 通过HTTP服务器搭载搜索页面， 为外部提供服务。
 
 ## 项目难点分析
-[关于搜索引擎的详细](https://github.com/Mrszhao112/MyProjects/new/main/boost_search)
+[关于搜索引擎的详细](https://github.com/Mrszhao112/MyProjects/blob/main/boost_search/doc/searcher.md)
