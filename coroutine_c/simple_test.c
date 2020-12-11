@@ -1,7 +1,7 @@
 #include "coroutine.h"
 #include <stdio.h>
 #include <stdlib.h>
-
+//执行函数1
 void* func1(schedule_t* s, void* args){
   printf("func1\n");
   coroutine_yield(s);
@@ -9,6 +9,7 @@ void* func1(schedule_t* s, void* args){
   printf("func1 exit %d\n", a);
   return NULL;
 }
+//执行函数2
 void* func2(schedule_t* s, void* args){
   printf("func2\n");
   coroutine_yield(s);
