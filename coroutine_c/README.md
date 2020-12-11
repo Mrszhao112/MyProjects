@@ -1,17 +1,32 @@
-# coroutine / 协程
-## 开发语言
-C
+schedule_creat创建协程调度器，初始化数据
 
-## 开发环境
-CentOS7、vim、gcc、gdb、git、MakeFile
+```cpp
+// 协程调度器
+typedef struct schedule {
+    coroutine_t** coroutines; // 所有协程
+    int current_id;           // 当前运行的协程id
+    int max_id;               // 最大下标
+    ucontext_t ctx_main;      // 主流程上下文
+} schedule_t;
+```
 
-## 项目介绍
-“协程”即用户态下的非抢占式的轻量级线程，是一种在程序开发中处理多任务的组件。 由于在C/C++中并没有引入协程这一概念，而大部分开源的库又过于重量，所以我基于ucontext组件实现了一个简单的协程库
+coroutine_creat创建协程，每一个协程有自己的回调函数、上下文数据、协程栈、运行状态等信息
 
-## 项目特点
-用户态实现协程的调度切换，减少了内核切换的开销。
-非抢占式，用户自己实现调度，同一时间只能有一个协程在执行，由协程主动交出控制权。
-基于非对称(asymmetric)模式, 控制流更加简单，程序更加结构化。
-协程具有独立的栈，确保运行效率。
-## 适用场景
-协程主要适用于I/O密集型的场景，如示例中的TCP服务器。在传统的多路复用+多线程/多进程的做法，每并发一个进程/线程就会消耗内存，并且最严重的问题就是由系统来进行调度切换带来的严重损耗，而协程刚好能够解决这些问题。
+创建协程后默认状态为READY，makecontext制造上下文保存到协程结构体的ctx中，当启动协程时先保存主流程上下文到调度器的ctx_main中，然后执行协程上下文，此时协程状态为RUNNING，当调用coroutine_yield时，保存当先上下文到协程结构体的ctx中，然后执行主流程上下文ctx_main，此时协程状态为SUSPEND，当调用coroutine_resume时，保存主流程上下文到调度器的ctx_main中，然后执行协程结构体的ctx上下文，当执行完回调函数后，协程进入DEAD状态
+
+```cpp
+// 协程结构体
+typedef struct coroutine {
+    void* (*call_back)(struct schedule*, void*); // 回调函数指针
+    void* args;          // 回调函数参数
+    ucontext_t ctx;      // 协程上下文
+    char stack[STACKSZ]; // 协程栈
+    enum State state;    // 协程状态
+} coroutine_t;
+```
+
+## 使用协程实现一个TCP服务器
+
+tcp_init: 创建tcp通信套接字，设置端口复用，绑定地址信息，进入listen状态，返回监听套接字文件描述符
+set_nonblock: 将监听套接字文件描述符设置为非阻塞
+accept_conn: 创建epoll对象，并将监听套接字加入。当有描述符就绪时，首先判断描述符类型，若为监听套接字则执行accept，为其创建协程结构体，并将新来的cfd加入epoll中，执行协程，以参数的形式传递cfd和epfd，协程函数遇到阻塞则让出cpu；若为通信套接字，则遍历调度器中的协程，找到协程回调参数中cfd等于就绪文件描述符的协程，恢复协程即可
