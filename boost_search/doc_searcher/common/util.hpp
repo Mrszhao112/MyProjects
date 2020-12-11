@@ -10,7 +10,7 @@ using std::vector;
 namespace common{
 class util{
   public:
-    //将input_path路径的文件读取到output中
+    // 将input_path路径的文件读取到output中
     static bool Read(const string& input_path, string* output){
       std::ifstream file(input_path.c_str());
       if(file.is_open() == false){
