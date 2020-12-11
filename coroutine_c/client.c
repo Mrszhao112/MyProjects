@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+//客户端 标准输入读数据进行发送 然后接收数据打印到标准
 int main() {
   int fd = socket(AF_INET, SOCK_STREAM, 0);
   struct sockaddr_in addr;
